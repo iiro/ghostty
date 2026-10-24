@@ -1,3 +1,27 @@
+> [!NOTE]
+> **This is Ghostty by Ippe**, a personal fork of [Ghostty](https://github.com/ghostty-org/ghostty).
+> It is not affiliated with or supported by the Ghostty project. The fork lives on the `ippe` branch.
+>
+> **Changes from upstream (macOS):**
+> - **Cmd+click opens links even when a program captures the mouse** (e.g. Claude Code and other TUIs).
+>   Stock Ghostty needs Shift+Cmd+click there. Other clicks, drags and scrolling still go to the program.
+> - **Runs side by side with official Ghostty:** named "Ghostty by Ippe", bundle id `com.iiro.ghostty`,
+>   orange app icon. Both read `~/.config/ghostty/config`; the config under
+>   `~/Library/Application Support/<bundle id>/` is separate per app.
+> - **No auto-updates:** the Sparkle updater is disabled so official releases never replace this build.
+>   Update by rebasing `ippe` onto upstream and rebuilding.
+>
+> **Build (macOS):** needs Xcode 26+ with the Metal toolchain (`xcodebuild -downloadComponent MetalToolchain`)
+> and Zig 0.17 (`brew install zig`). Then run `zig build -Doptimize=ReleaseFast` and copy
+> `zig-out/Ghostty.app` to `/Applications/Ghostty by Ippe.app`. The build is ad-hoc signed, so a copy
+> moved to another Mac needs `xattr -dr com.apple.quarantine` before it opens. Building on that Mac avoids this.
+>
+> **Sync with upstream:**
+> ```sh
+> git remote add upstream https://github.com/ghostty-org/ghostty.git   # once
+> git fetch upstream && git rebase upstream/main && git push --force-with-lease
+> ```
+
 <!-- LOGO -->
 <h1>
 <p align="center">
