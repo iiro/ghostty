@@ -2866,8 +2866,11 @@ pub fn keyCallback(
         // 1. mouse reporting is off
         // OR
         // 2. mouse reporting is on and we are not reporting shift to the terminal
+        // OR
+        // 3. mouse reporting is on and the link modifier is held
         if (self.io.terminal.flags.mouse_event == .none or
-            (self.mouse.mods.shift and !self.mouseShiftCapture(false)))
+            (self.mouse.mods.shift and !self.mouseShiftCapture(false)) or
+            self.mouseLinkModsHeld())
         {
             // Refresh our link state
             const pos = self.rt_surface.getCursorPos() catch break :mouse_mods;
@@ -3904,6 +3907,13 @@ fn mouseShiftCapture(self: *const Surface, lock: bool) bool {
     };
 }
 
+/// Returns true if the link modifier (super on macOS, ctrl elsewhere) is
+/// held on its own. While held, links are detected and clickable even when
+/// the terminal is capturing the mouse, the same way shift releases capture.
+fn mouseLinkModsHeld(self: *const Surface) bool {
+    return self.mouse.mods.equal(input.ctrlOrSuper(.{}));
+}
+
 /// Returns true if the mouse is currently captured by the terminal
 /// (i.e. reporting events).
 pub fn mouseCaptured(self: *Surface) bool {
@@ -4062,6 +4072,10 @@ pub fn mouseButtonCallback(
             // If we have shift-pressed and we aren't allowed to capture it,
             // then we do not do a mouse report.
             if (mods.shift and !shift_capture) break :report;
+
+            // If the link modifier is held over a link, the click belongs
+            // to the link, not the application.
+            if (self.mouse.over_link and self.mouseLinkModsHeld()) break :report;
 
             // In any other mouse button scenario without shift pressed we
             // clear the selection since the underlying application can handle
@@ -4764,11 +4778,14 @@ pub fn cursorPosCallback(
     // 1. mouse reporting is off
     // OR
     // 2. mouse reporting is on and we are not reporting shift to the terminal
+    // OR
+    // 3. mouse reporting is on and the link modifier is held
     if ((over_link or
         self.mouse.link_point == null or
         (self.mouse.link_point != null and !self.mouse.link_point.?.eql(pos_vp))) and
         (self.io.terminal.flags.mouse_event == .none or
-            (self.mouse.mods.shift and !self.mouseShiftCapture(false))))
+            (self.mouse.mods.shift and !self.mouseShiftCapture(false)) or
+            self.mouseLinkModsHeld()))
     {
         // If we were previously over a link, we always update. We do this so that if the text
         // changed underneath us, even if the mouse didn't move, we update the URL hints and state
