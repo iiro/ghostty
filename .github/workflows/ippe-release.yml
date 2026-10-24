@@ -64,15 +64,33 @@ jobs:
         include:
           - name: macos-universal
             runner: macos-26
+          # Ghostty needs libadwaita 1.7+ to build, newer than the Ubuntu 24.04
+          # runners ship, so Linux builds run in an Ubuntu 26.04 container.
           - name: linux-x86_64
             runner: ubuntu-24.04
+            container: ubuntu:26.04
           - name: linux-aarch64
             runner: ubuntu-24.04-arm
+            container: ubuntu:26.04
     runs-on: ${{ matrix.runner }}
+    container: ${{ matrix.container }}
     timeout-minutes: 90
     env:
       VERSION: ${{ needs.version.outputs.version }}
     steps:
+      # Runs before checkout because the container needs git for full history.
+      - name: Install build dependencies (Linux)
+        if: runner.os == 'Linux'
+        env:
+          DEBIAN_FRONTEND: noninteractive
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends \
+            git ca-certificates xz-utils \
+            libgtk-4-dev libadwaita-1-dev libgtk4-layer-shell-dev \
+            gettext libxml2-utils pkg-config \
+            meson ninja-build python3-gi gir1.2-gtk-4.0 gir1.2-adw-1
+
       - name: Checkout
         uses: actions/checkout@v5
         with:
@@ -117,22 +135,14 @@ jobs:
 
       # Linux
 
-      - name: Install build dependencies (Linux)
-        if: runner.os == 'Linux'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
-            libgtk-4-dev libadwaita-1-dev gettext libxml2-utils pkg-config \
-            meson ninja-build python3-gi gir1.2-gtk-4.0 gir1.2-adw-1
-
-      # Ghostty needs blueprint-compiler 0.20+, newer than Ubuntu 24.04 ships.
+      # Ghostty needs blueprint-compiler 0.20+, newer than Ubuntu 26.04 ships.
       - name: Install blueprint-compiler (Linux)
         if: runner.os == 'Linux'
         run: |
           git clone --depth 1 --branch "$BLUEPRINT_COMPILER_VERSION" \
             https://gitlab.gnome.org/GNOME/blueprint-compiler.git /tmp/blueprint-compiler
           meson setup /tmp/blueprint-compiler/build /tmp/blueprint-compiler --prefix=/usr/local
-          sudo ninja -C /tmp/blueprint-compiler/build install
+          ninja -C /tmp/blueprint-compiler/build install
           blueprint-compiler --version
 
       - name: Build (Linux)
@@ -183,4 +193,4 @@ jobs:
 
           The app is ad-hoc signed and not notarized, so macOS blocks it until the quarantine flag is removed.
 
-          **Linux** (x86_64 or aarch64): needs GTK 4.14+ and libadwaita 1.5+ (e.g. Ubuntu 24.04 or newer). Extract into \`~/.local\` with \`tar -xzf <file>.tar.gz -C ~/.local\` and make sure \`~/.local/bin\` is on your PATH. On Linux the app ID is still upstream's \`com.mitchellh.ghostty\`, so this replaces rather than runs beside an official Ghostty install. The link fix uses Ctrl+click on Linux."
+          **Linux** (x86_64 or aarch64): built on Ubuntu 26.04, so it needs a similarly recent distro: glibc 2.43+, GTK 4 and libadwaita 1.7+, and gtk4-layer-shell (e.g. Ubuntu 26.04, or a current Fedora or Arch). Extract into \`~/.local\` with \`tar -xzf <file>.tar.gz -C ~/.local\` and make sure \`~/.local/bin\` is on your PATH. On Linux the app ID is still upstream's \`com.mitchellh.ghostty\`, so this replaces rather than runs beside an official Ghostty install. The link fix uses Ctrl+click on Linux."
