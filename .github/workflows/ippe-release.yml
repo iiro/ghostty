@@ -120,8 +120,8 @@ jobs:
       - name: Package (macOS)
         if: runner.os == 'macOS'
         run: |
-          app="dist/Ghostty by Ippe.app"
-          mkdir -p dist
+          app="ippe-dist/Ghostty by Ippe.app"
+          mkdir -p ippe-dist
           cp -R zig-out/Ghostty.app "$app"
           plist="$app/Contents/Info.plist"
           /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $VERSION" "$plist"
@@ -130,7 +130,7 @@ jobs:
           codesign --force --deep --sign - "$app"
           codesign --verify --deep --strict "$app"
           lipo -archs "$app/Contents/MacOS/ghostty"
-          ditto -c -k --sequesterRsrc --keepParent "$app" "dist/Ghostty-by-Ippe-$VERSION-macos-universal.zip"
+          ditto -c -k --sequesterRsrc --keepParent "$app" "ippe-dist/Ghostty-by-Ippe-$VERSION-macos-universal.zip"
           rm -rf "$app"
 
       # Linux
@@ -154,14 +154,14 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           zig-out/bin/ghostty +version
-          mkdir -p dist
-          tar -C zig-out -czf "dist/Ghostty-by-Ippe-$VERSION-${{ matrix.name }}.tar.gz" bin share
+          mkdir -p ippe-dist
+          tar -C zig-out -czf "ippe-dist/Ghostty-by-Ippe-$VERSION-${{ matrix.name }}.tar.gz" bin share
 
       - name: Upload build
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.name }}
-          path: dist/*
+          path: ippe-dist/Ghostty-by-Ippe-*
           if-no-files-found: error
 
   release:
@@ -171,15 +171,15 @@ jobs:
       - name: Download builds
         uses: actions/download-artifact@v4
         with:
-          path: dist
+          path: ippe-dist
           merge-multiple: true
 
       - name: Publish release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          ls -la dist
-          gh release create "${{ needs.version.outputs.tag }}" dist/* \
+          ls -la ippe-dist
+          gh release create "${{ needs.version.outputs.tag }}" ippe-dist/Ghostty-by-Ippe-* \
             --repo "$GITHUB_REPOSITORY" \
             --target "$GITHUB_SHA" \
             --title "Ghostty by Ippe ${{ needs.version.outputs.version }}" \
