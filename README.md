@@ -11,8 +11,9 @@
 > - **No auto-updates:** the Sparkle updater is disabled so official releases never replace this build.
 >   Update by rebasing `ippe` onto upstream and rebuilding.
 >
-> **Download:** prebuilt, ad-hoc signed macOS builds are on the [Releases](https://github.com/iiro/ghostty/releases) page,
-> versioned `<commit date>-<short hash>` (e.g. `2026.10.24-61b3e64`). Run the "Ippe Release" workflow to publish one.
+> **Download:** prebuilt builds for macOS (universal, ad-hoc signed) and Linux (x86_64 and aarch64) are on the
+> [Releases](https://github.com/iiro/ghostty/releases) page, versioned `<commit date>-<short hash>` (e.g. `2026.10.24-61b3e64`).
+> Every push to `ippe` publishes a release automatically, except pushes that only change Markdown files.
 >
 > **Build (macOS):** needs Xcode 26+ with the Metal toolchain (`xcodebuild -downloadComponent MetalToolchain`)
 > and Zig 0.17 (`brew install zig`). Then run `zig build -Doptimize=ReleaseFast` and copy
