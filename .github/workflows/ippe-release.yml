@@ -9,6 +9,12 @@ name: Ippe Release
 # version. Builds are not notarized (macOS) or packaged for a distro (Linux).
 
 on:
+  # Every push to ippe releases that commit. Documentation-only pushes are
+  # skipped; run the workflow manually to release one anyway.
+  push:
+    branches: [ippe]
+    paths-ignore:
+      - '**/*.md'
   workflow_dispatch:
 
 permissions:
@@ -168,11 +174,24 @@ jobs:
     needs: [version, build]
     runs-on: ubuntu-24.04
     steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
       - name: Download builds
         uses: actions/download-artifact@v4
         with:
           path: ippe-dist
           merge-multiple: true
+
+      - name: Write release notes
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          prev=$(gh release view --repo "$GITHUB_REPOSITORY" --json tagName --jq .tagName 2>/dev/null || true)
+          .github/scripts/ippe-release-notes.sh "${{ needs.version.outputs.tag }}" "$prev" > "$RUNNER_TEMP/notes.md"
+          cat "$RUNNER_TEMP/notes.md"
 
       - name: Publish release
         env:
@@ -183,14 +202,4 @@ jobs:
             --repo "$GITHUB_REPOSITORY" \
             --target "$GITHUB_SHA" \
             --title "Ghostty by Ippe ${{ needs.version.outputs.version }}" \
-            --notes "Built from ${GITHUB_SHA} on branch ${GITHUB_REF_NAME}.
-
-          **macOS** (universal): unzip, move \`Ghostty by Ippe.app\` to /Applications, then run:
-
-          \`\`\`
-          xattr -dr com.apple.quarantine \"/Applications/Ghostty by Ippe.app\"
-          \`\`\`
-
-          The app is ad-hoc signed and not notarized, so macOS blocks it until the quarantine flag is removed.
-
-          **Linux** (x86_64 or aarch64): built on Ubuntu 26.04, so it needs a similarly recent distro: glibc 2.43+, GTK 4 and libadwaita 1.7+, and gtk4-layer-shell (e.g. Ubuntu 26.04, or a current Fedora or Arch). Extract into \`~/.local\` with \`tar -xzf <file>.tar.gz -C ~/.local\` and make sure \`~/.local/bin\` is on your PATH. On Linux the app ID is still upstream's \`com.mitchellh.ghostty\`, so this replaces rather than runs beside an official Ghostty install. The link fix uses Ctrl+click on Linux."
+            --notes-file "$RUNNER_TEMP/notes.md"
