@@ -8,6 +8,10 @@ const locales = @import("../os/i18n_locales.zig").locales;
 
 const domain = "com.mitchellh.ghostty";
 
+// Name of the installed .mo files. Must match build_config.bundle_id, which
+// the runtime binds the gettext domain to.
+const install_domain = "com.iiro.ghostty";
+
 owner: *std.Build,
 steps: []*std.Build.Step,
 
@@ -37,7 +41,7 @@ pub fn init(b: *std.Build, cfg: *const Config) !GhosttyI18n {
             msgfmt.captureStdOut(.{}),
             std.fmt.comptimePrint(
                 "share/locale/{s}/LC_MESSAGES/{s}.mo",
-                .{ target_locale, domain },
+                .{ target_locale, install_domain },
             ),
         ).step);
     }
