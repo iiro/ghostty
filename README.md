@@ -6,7 +6,7 @@
 > - **Cmd+click opens links even when a program captures the mouse** (e.g. Claude Code and other TUIs).
 >   Stock Ghostty needs Shift+Cmd+click there. Other clicks, drags and scrolling still go to the program.
 > - **Runs side by side with official Ghostty:** named "Ghostty by Ippe", bundle id `com.iiro.ghostty`,
->   orange app icon. Both read `~/.config/ghostty/config`; the config under
+>   orange app icon. Both read `~/.config/ghostty/config.ghostty`; the config under
 >   `~/Library/Application Support/<bundle id>/` is separate per app.
 > - **No auto-updates:** the Sparkle updater is disabled so official releases never replace this build.
 >   Update by rebasing `ippe` onto upstream and rebuilding.
