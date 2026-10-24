@@ -62,7 +62,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - name: macos
+          - name: macos-universal
             runner: macos-26
           - name: linux-x86_64
             runner: ubuntu-24.04
@@ -112,7 +112,7 @@ jobs:
           codesign --force --deep --sign - "$app"
           codesign --verify --deep --strict "$app"
           lipo -archs "$app/Contents/MacOS/ghostty"
-          ditto -c -k --sequesterRsrc --keepParent "$app" "dist/Ghostty-by-Ippe-$VERSION-macos.zip"
+          ditto -c -k --sequesterRsrc --keepParent "$app" "dist/Ghostty-by-Ippe-$VERSION-macos-universal.zip"
           rm -rf "$app"
 
       # Linux
