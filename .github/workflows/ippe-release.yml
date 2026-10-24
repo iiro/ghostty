@@ -1,0 +1,103 @@
+name: Ippe Release
+
+# Builds "Ghostty by Ippe" for macOS and publishes it as a GitHub release.
+#
+# Version: <commit date YYYY.MM.DD>-<short hash>, e.g. 2026.10.24-61b3e64.
+# The tag is the version prefixed with "ippe-". Using the commit date (UTC)
+# instead of the build date means the same commit always gets the same
+# version. The build is ad-hoc signed, not notarized.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ippe-release
+  cancel-in-progress: false
+
+jobs:
+  build-macos:
+    runs-on: macos-26
+    timeout-minutes: 90
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          # Full history so Ghostty's build can derive its own version from git.
+          fetch-depth: 0
+
+      - name: Compute version
+        id: version
+        run: |
+          date=$(TZ=UTC git log -1 --date=format-local:%Y.%m.%d --format=%cd)
+          hash=$(git rev-parse --short=7 HEAD)
+          version="$date-$hash"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "build=$date" >> "$GITHUB_OUTPUT"
+          echo "tag=ippe-$version" >> "$GITHUB_OUTPUT"
+          echo "Version: $version"
+
+      - name: Skip if already released
+        id: exists
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "${{ steps.version.outputs.tag }}" >/dev/null 2>&1; then
+            echo "Release ${{ steps.version.outputs.tag }} already exists, nothing to do."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Select Xcode
+        if: steps.exists.outputs.skip != 'true'
+        run: |
+          xcode=$(ls -d /Applications/Xcode_26*.app | sort -V | tail -1)
+          echo "Using $xcode"
+          sudo xcode-select -s "$xcode"
+          xcodebuild -version
+          xcodebuild -downloadComponent MetalToolchain
+
+      - name: Install Zig
+        if: steps.exists.outputs.skip != 'true'
+        uses: mlugg/setup-zig@v2
+        with:
+          version: 0.17.0
+
+      - name: Build
+        if: steps.exists.outputs.skip != 'true'
+        run: zig build -Doptimize=ReleaseFast
+
+      - name: Package
+        if: steps.exists.outputs.skip != 'true'
+        run: |
+          app="dist/Ghostty by Ippe.app"
+          mkdir -p dist
+          cp -R zig-out/Ghostty.app "$app"
+          plist="$app/Contents/Info.plist"
+          /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString ${{ steps.version.outputs.version }}" "$plist"
+          /usr/libexec/PlistBuddy -c "Set :CFBundleVersion ${{ steps.version.outputs.build }}" "$plist"
+          # Editing Info.plist invalidates the signature, so re-sign ad-hoc.
+          codesign --force --deep --sign - "$app"
+          codesign --verify --deep --strict "$app"
+          lipo -archs "$app/Contents/MacOS/ghostty"
+          ditto -c -k --sequesterRsrc --keepParent "$app" "dist/Ghostty-by-Ippe-${{ steps.version.outputs.version }}-macos.zip"
+
+      - name: Publish release
+        if: steps.exists.outputs.skip != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${{ steps.version.outputs.tag }}" \
+            dist/*.zip \
+            --target "$GITHUB_SHA" \
+            --title "Ghostty by Ippe ${{ steps.version.outputs.version }}" \
+            --notes "Built from ${GITHUB_SHA} on branch ${GITHUB_REF_NAME}.
+
+          **Install:** unzip, move \`Ghostty by Ippe.app\` to /Applications, then run:
+
+          \`\`\`
+          xattr -dr com.apple.quarantine \"/Applications/Ghostty by Ippe.app\"
+          \`\`\`
+
+          This build is ad-hoc signed and not notarized, so macOS blocks it until the quarantine flag is removed."
