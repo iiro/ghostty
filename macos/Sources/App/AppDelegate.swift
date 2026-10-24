@@ -229,8 +229,9 @@ class AppDelegate: NSObject,
         // Initial config loading
         ghosttyConfigDidChange(config: ghostty.config)
 
-        // Start our update checker.
-        updateController.startUpdater()
+        // Ghostty by Ippe: the updater is never started. Sparkle would pull official
+        // Ghostty builds from upstream's appcast and replace this fork.
+        menuCheckForUpdates?.isHidden = true
 
         // Register our service provider. This must happen after everything is initialized.
         NSApp.servicesProvider = ServiceProvider()
@@ -1005,7 +1006,7 @@ class AppDelegate: NSObject,
     }
 
     @IBAction func checkForUpdates(_ sender: Any?) {
-        updateController.checkForUpdates()
+        // Ghostty by Ippe: updates come from rebuilding the fork, never from Sparkle.
         // UpdateSimulator.happyPath.simulate(with: updateViewModel)
     }
 
