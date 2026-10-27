@@ -13,7 +13,10 @@ prev=${2:-}
 repo=${GITHUB_REPOSITORY:-iiro/ghostty}
 upstream_url=https://github.com/ghostty-org/ghostty.git
 
-git fetch --quiet --tags "$upstream_url" main:refs/ippe-notes/upstream-main
+# Only release tags: upstream moves its "tip" tag, which would clash with
+# the fork's stale copy and fail the fetch.
+git fetch --quiet --no-tags "$upstream_url" \
+  main:refs/ippe-notes/upstream-main 'refs/tags/v*:refs/tags/v*'
 base=$(git merge-base HEAD refs/ippe-notes/upstream-main)
 base_short=$(git rev-parse --short=7 "$base")
 base_date=$(TZ=UTC git log -1 --date=format-local:%Y-%m-%d --format=%cd "$base")
