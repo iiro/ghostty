@@ -47,7 +47,7 @@ cat <<'EOF'
 xattr -dr com.apple.quarantine "/Applications/Ghostty by Ippe.app"
 ```
 
-The app is ad-hoc signed and not notarized, so macOS blocks it until the quarantine flag is removed.
+The app is ad-hoc signed and not notarized, so macOS blocks it until the quarantine flag is removed. This is needed only for the first install: after that, the app updates itself from this fork's releases (Ghostty menu → Check for Updates).
 
 **Linux** (x86_64 or aarch64): built on Ubuntu 26.04, so it needs a similarly recent distro: glibc 2.43+, GTK 4 and libadwaita 1.7+, and gtk4-layer-shell (e.g. Ubuntu 26.04, or a current Fedora or Arch). Extract into `~/.local` with `tar -xzf <file>.tar.gz -C ~/.local` and make sure `~/.local/bin` is on your PATH. On Linux the app ID is still upstream's `com.mitchellh.ghostty`, so this replaces rather than runs beside an official Ghostty install. The link fix uses Ctrl+click on Linux.
 EOF

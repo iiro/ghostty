@@ -8,8 +8,10 @@
 > - **Runs side by side with official Ghostty:** named "Ghostty by Ippe", bundle id `com.iiro.ghostty`,
 >   orange app icon. Both read `~/.config/ghostty/config.ghostty`; the config under
 >   `~/Library/Application Support/<bundle id>/` is separate per app.
-> - **No auto-updates:** the Sparkle updater is disabled so official releases never replace this build.
->   Update by rebasing `ippe` onto upstream and rebuilding.
+> - **Updates from this fork, not upstream:** the Sparkle updater reads the appcast attached to this
+>   fork's latest release, so official Ghostty releases never replace this build. Updates are signed
+>   with the fork's own key (`SUPublicEDKey` in `macos/Ghostty-Info.plist`); CI signs with the
+>   `SPARKLE_PRIVATE_KEY` secret.
 >
 > **Download:** prebuilt builds for macOS (universal, ad-hoc signed) and Linux (x86_64 and aarch64) are on the
 > [Releases](https://github.com/iiro/ghostty/releases) page, versioned `<commit date>-<short hash>` (e.g. `2026.10.24-61b3e64`).

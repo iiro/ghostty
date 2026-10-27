@@ -7,6 +7,10 @@ name: Ippe Release
 # The tag is the version prefixed with "ippe-". Using the commit date (UTC)
 # instead of the build date means the same commit always gets the same
 # version. Builds are not notarized (macOS) or packaged for a distro (Linux).
+#
+# The macOS app updates itself with Sparkle from the appcast.xml attached to
+# the latest release. The zip is signed with the SPARKLE_PRIVATE_KEY secret,
+# whose public key is SUPublicEDKey in macos/Ghostty-Info.plist.
 
 on:
   # Every push to ippe releases that commit. Documentation-only pushes are
@@ -27,6 +31,7 @@ concurrency:
 env:
   ZIG_VERSION: 0.17.0
   BLUEPRINT_COMPILER_VERSION: v0.20.4
+  SPARKLE_VERSION: 2.9.6
 
 jobs:
   version:
@@ -46,8 +51,11 @@ jobs:
           date=$(TZ=UTC git log -1 --date=format-local:%Y.%m.%d --format=%cd)
           hash=$(git rev-parse --short=7 HEAD)
           version="$date-$hash"
+          # CFBundleVersion, which Sparkle compares to find newer builds: the
+          # commit time, so releases on the same day still sort in order.
+          build=$(TZ=UTC git log -1 --date=format-local:%Y%m%d%H%M%S --format=%cd)
           echo "version=$version" >> "$GITHUB_OUTPUT"
-          echo "build=$date" >> "$GITHUB_OUTPUT"
+          echo "build=$build" >> "$GITHUB_OUTPUT"
           echo "tag=ippe-$version" >> "$GITHUB_OUTPUT"
           echo "Version: $version"
 
@@ -132,12 +140,35 @@ jobs:
           plist="$app/Contents/Info.plist"
           /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $VERSION" "$plist"
           /usr/libexec/PlistBuddy -c "Set :CFBundleVersion ${{ needs.version.outputs.build }}" "$plist"
+          # Local builds only check for updates when asked; releases follow
+          # Ghostty's auto-update setting, as upstream's releases do.
+          /usr/libexec/PlistBuddy -c "Delete :SUEnableAutomaticChecks" "$plist"
           # Editing Info.plist invalidates the signature, so re-sign ad-hoc.
           codesign --force --deep --sign - "$app"
           codesign --verify --deep --strict "$app"
           lipo -archs "$app/Contents/MacOS/ghostty"
           ditto -c -k --sequesterRsrc --keepParent "$app" "ippe-dist/Ghostty-by-Ippe-$VERSION-macos-universal.zip"
           rm -rf "$app"
+
+      - name: Sign update and write appcast (macOS)
+        if: runner.os == 'macOS'
+        env:
+          SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
+        run: |
+          if [ -z "$SPARKLE_PRIVATE_KEY" ]; then
+            echo "::error::The SPARKLE_PRIVATE_KEY secret is not set, so the update can't be signed."
+            exit 1
+          fi
+          # The same Sparkle version the app links (macos/.../Package.resolved).
+          curl -fsSL -o "$RUNNER_TEMP/sparkle.zip" \
+            "https://github.com/sparkle-project/Sparkle/releases/download/$SPARKLE_VERSION/Sparkle-for-Swift-Package-Manager.zip"
+          unzip -q "$RUNNER_TEMP/sparkle.zip" -d "$RUNNER_TEMP/sparkle"
+          sign_update="$RUNNER_TEMP/sparkle/bin/sign_update"
+          zip="ippe-dist/Ghostty-by-Ippe-$VERSION-macos-universal.zip"
+          signature=$(echo "$SPARKLE_PRIVATE_KEY" | "$sign_update" --ed-key-file - "$zip")
+          .github/scripts/ippe-appcast.sh "$VERSION" "${{ needs.version.outputs.build }}" \
+            "${{ needs.version.outputs.tag }}" "$zip" "$signature" > ippe-dist/appcast.xml
+          cat ippe-dist/appcast.xml
 
       # Linux
 
@@ -167,7 +198,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.name }}
-          path: ippe-dist/Ghostty-by-Ippe-*
+          path: |
+            ippe-dist/Ghostty-by-Ippe-*
+            ippe-dist/appcast.xml
           if-no-files-found: error
 
   release:
@@ -198,7 +231,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           ls -la ippe-dist
-          gh release create "${{ needs.version.outputs.tag }}" ippe-dist/Ghostty-by-Ippe-* \
+          gh release create "${{ needs.version.outputs.tag }}" ippe-dist/Ghostty-by-Ippe-* ippe-dist/appcast.xml \
             --repo "$GITHUB_REPOSITORY" \
             --target "$GITHUB_SHA" \
             --title "Ghostty by Ippe ${{ needs.version.outputs.version }}" \
